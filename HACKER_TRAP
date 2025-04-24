@@ -1,0 +1,129 @@
+------------------------------------------------------------
+-- ✨ CẤU HÌNH
+local LAVA_POS   = Vector3.new(-4960.16, 143.77, -5391.05)           -- toạ độ LAVA (sửa tuỳ ý)
+local LOOP_POS   = {                               -- 4 toạ độ luân phiên
+    Vector3.new(-4821.41, 4.93, -5749.52),
+    Vector3.new(-4715.31, 4.93, -5124.96),
+    Vector3.new(-5253.32, 4.93, -4928.84),
+    Vector3.new(-5411.11, 4.93, -5865.09)
+}
+local TWEEN_SPEED = 350        -- tốc độ lướt
+local NEAR_LAVA_DISTANCE = 1000
+------------------------------------------------------------
+
+-- 📦 Dịch vụ
+local Players      = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local RunService   = game:GetService("RunService")
+local player       = Players.LocalPlayer
+
+------------------------------------------------------------------
+-- GUI
+local gui   = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+gui.ResetOnSpawn = false
+
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0, 180, 0, 80)
+frame.Position = UDim2.new(0.5, -90, 0.25, 0)
+frame.BackgroundColor3 = Color3.fromRGB(35,35,35)
+frame.Active = true
+frame.Draggable = true
+
+local toggle = Instance.new("TextButton", frame)
+toggle.Size  = UDim2.new(0.7, 0, 0.6, 0)
+toggle.Position = UDim2.new(0.05, 0, 0.2, 0)
+toggle.Text = "OFF"
+toggle.BackgroundColor3 = Color3.fromRGB(255,50,50)
+toggle.TextColor3 = Color3.new(1,1,1)
+toggle.Font = Enum.Font.SourceSansBold
+toggle.TextScaled = true
+
+local close = Instance.new("TextButton", frame)
+close.Size  = UDim2.new(0.2, 0, 0.3, 0)
+close.Position = UDim2.new(0.75, 0, 0.35, 0)
+close.Text = "X"
+close.BackgroundColor3 = Color3.fromRGB(200,0,0)
+close.TextColor3 = Color3.new(1,1,1)
+close.Font = Enum.Font.SourceSansBold
+close.TextScaled = true
+------------------------------------------------------------------
+
+-- Biến trạng thái
+local running = false
+local loopThread = nil
+
+------------------------------------------------------------------
+-- HÀM XÓA LAVA
+local function removeLava()
+    local path = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("CircleIsland")
+    if path and path:FindFirstChild("Detail") and path.Detail:FindFirstChild("LavaParts") then
+        path.Detail.LavaParts:Destroy()
+    end
+end
+
+------------------------------------------------------------------
+-- HÀM TWEEN ĐẾN VỊ TRÍ
+local function tweenTo(pos)
+    local char = player.Character or player.CharacterAdded:Wait()
+    local hrp  = char:WaitForChild("HumanoidRootPart")
+    local dist = (hrp.Position - pos).Magnitude
+    local tween = TweenService:Create(hrp, TweenInfo.new(dist / TWEEN_SPEED, Enum.EasingStyle.Linear), {CFrame = CFrame.new(pos)})
+    tween:Play()
+    tween.Completed:Wait()
+end
+
+------------------------------------------------------------------
+-- VÒNG LẶP CHÍNH
+local function startLoop()
+    loopThread = task.spawn(function()
+        -- B1: xoá lava
+        removeLava()
+
+        -- B2: nếu xa LAVA > 1000m → Tween tới
+        local hrp = player.Character:WaitForChild("HumanoidRootPart")
+        if (hrp.Position - LAVA_POS).Magnitude > NEAR_LAVA_DISTANCE then
+            tweenTo(LAVA_POS + Vector3.new(0,3,0))
+        end
+
+        -- B3: luân phiên 4 điểm
+        local idx = 1
+        while running do
+            local target = LOOP_POS[idx]
+            idx = idx % #LOOP_POS + 1         -- tăng chỉ số vòng tròn
+            tweenTo(target)
+            task.wait(0.01)                      -- dừng 2s rồi di chuyển tiếp
+        end
+    end)
+end
+
+local function stopLoop()
+    if loopThread then
+        task.cancel(loopThread)
+        loopThread = nil
+    end
+    -- Teleport lên cao 500 m
+    local char = player.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        char.HumanoidRootPart.CFrame = char.HumanoidRootPart.CFrame + Vector3.new(0,500,0)
+    end
+end
+
+------------------------------------------------------------------
+-- SỰ KIỆN NÚT
+toggle.MouseButton1Click:Connect(function()
+    running = not running
+    toggle.Text = running and "ON" or "OFF"
+    toggle.BackgroundColor3 = running and Color3.fromRGB(50,255,50) or Color3.fromRGB(255,50,50)
+
+    if running then
+        startLoop()
+    else
+        stopLoop()
+    end
+end)
+
+close.MouseButton1Click:Connect(function()
+    running = false
+    stopLoop()
+    gui:Destroy()
+end)
