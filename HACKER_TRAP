@@ -1,3 +1,10 @@
+game.StarterGui:SetCore("SendNotification", {
+    Title = "HACKER TRAP";
+    Text = "Auto dash to Lava Zone and move 4 corners to kill hacker by lava";
+    Duration = 5;
+    Icon = "rbxthumb://type=Asset&id=116074874539723&w=150&h=150";
+})
+
 ------------------------------------------------------------
 -- ✨ CẤU HÌNH
 local LAVA_POS   = Vector3.new(-4960.16, 143.77, -5391.05)           -- toạ độ LAVA (sửa tuỳ ý)
